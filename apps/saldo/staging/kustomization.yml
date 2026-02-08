@@ -18,4 +18,4 @@ patches:
       name: saldo-ing
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/saldo:1.0.4
+    newName: tomjtoth/saldo:1.0.5
