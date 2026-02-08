@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  namespace: saldo
   name: saldo-dep
   labels:
     app: saldo
@@ -36,8 +35,6 @@ spec:
           imagePullPolicy: Always
 
           env:
-            - name: AUTH_TRUST_HOST
-              value: yep
             - name: AUTH_URL
               value: https://saldo.ttj.hu/api/auth
 

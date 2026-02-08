@@ -6,7 +6,7 @@
     - cp /app/data/prod.db /app/data/staging.db && exec node server.js
 
 - op: replace
-  path: /spec/template/spec/containers/0/env/1/value
+  path: /spec/template/spec/containers/0/env/0/value
   value: https://staging.saldo.ttj.hu/api/auth
 
 - op: add
