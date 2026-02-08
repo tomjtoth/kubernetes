@@ -3,7 +3,7 @@ kind: Deployment
 
 metadata:
   namespace: saldo
-  name: saldo
+  name: saldo-dep
   labels:
     app: saldo
 

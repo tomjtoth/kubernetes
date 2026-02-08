@@ -5,14 +5,12 @@
     - -c
     - cp /app/data/prod.db /app/data/staging.db && exec node server.js
 
+- op: replace
+  path: /spec/template/spec/containers/0/env/1/value
+  value: https://staging.saldo.ttj.hu/api/auth
+
 - op: add
   path: /spec/template/spec/containers/0/env/-
   value:
     name: DB_PATH
     value: /app/data/staging.db
-
-- op: add
-  path: /spec/template/spec/containers/0/env/-
-  value:
-    name: AUTH_URL
-    value: https://staging.saldo.ttj.hu/api/auth
