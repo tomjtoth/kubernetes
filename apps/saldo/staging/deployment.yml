@@ -1,23 +1,18 @@
-apiVersion: apps/v1
-kind: Deployment
+- op: add
+  path: /spec/template/spec/containers/0/command
+  value:
+    - sh
+    - -c
+    - cp /app/data/prod.db /app/data/staging.db && exec node server.js
 
-metadata:
-  namespace: saldo
-  name: saldo
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: DB_PATH
+    value: /app/data/staging.db
 
-spec:
-  template:
-    spec:
-      containers:
-        - name: saldo
-
-          command:
-            - sh
-            - -c
-            - cp /app/data/prod.db /app/data/staging.db && exec node server.js
-
-          env:
-            - name: DB_PATH
-              value: data/staging.db
-            - name: AUTH_URL
-              value: https://staging.saldo.ttj.hu/api/auth
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: AUTH_URL
+    value: https://staging.saldo.ttj.hu/api/auth
