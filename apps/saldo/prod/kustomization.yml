@@ -5,4 +5,4 @@ resources:
   - ../base
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/saldo:1.0.9
+    newName: tomjtoth/saldo:1.0.10
