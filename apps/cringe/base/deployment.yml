@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: cringe-dep
+  labels:
+    app: cringe
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cringe
+  template:
+    metadata:
+      labels:
+        app: cringe
+    spec:
+      containers:
+        - name: cringe
+          image: IMAGES/APP
+          imagePullPolicy: Always
+
+          env:
+            - name: REDIRECT_URL
+              value: https://cringe.ttj.hu/auth/authorized
+
+          envFrom:
+            - secretRef:
+                name: cringe-secrets

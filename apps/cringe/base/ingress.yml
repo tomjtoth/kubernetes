@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+  name: cringe-ing
+
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: cringe.ttj.hu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cringe-svc
+                port:
+                  number: 80
