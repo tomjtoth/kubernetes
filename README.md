@@ -49,7 +49,7 @@ Tässä lähinnä muistutukset itselleni.
     init_app_secrets saldo veripalvelu
     ```
 
-2.  Laita [sovellukset](kustomization.yml) pyörimään
+2.  Laita sovellukset pyörimään
 
     ```sh
     kubectl apply -k .
@@ -59,8 +59,4 @@ Serti kattaa jokaisen subdomain:in `*.ttj.hu`, ja käyttää [Cloudflare:in API-
 
 ### TODO
 
-Leftovers from docker-compose migration and future extensions:
-
-- re-instate `staging.saldo.ttj.hu`
-  - also create a tagging major/minor/patch bumping script in saldo's repo
-- Oracle's object storage for backups of the backups :)
+- Saldo data to be backed up to Oracle's object storage
