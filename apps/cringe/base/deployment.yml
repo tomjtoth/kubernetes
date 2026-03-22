@@ -16,6 +16,21 @@ spec:
       labels:
         app: cringe
     spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h cringe-db-svc -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+                echo "waiting for cringe-db-svc..."
+                sleep 2
+              done
+          envFrom:
+            - secretRef:
+                name: cringe-secrets
+
       containers:
         - name: cringe
           image: IMAGES/APP
@@ -25,6 +40,50 @@ spec:
             - name: REDIRECT_URL
               value: https://cringe.ttj.hu/auth/authorized
 
+            - name: DATABASE_URL
+              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@cringe-db-svc/cringe-db-svc$(POSTGRES_DB)
+
           envFrom:
             - secretRef:
                 name: cringe-secrets
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: cringe
+  name: cringe-db-dep
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      volumes:
+        - name: db-data
+          # I actually don't care about this app's data, yet...
+          emptyDir: {}
+
+      containers:
+        - name: postgres
+          image: postgres:alpine
+
+          envFrom:
+            - secretRef:
+                name: cringe-secrets
+
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "vp"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
