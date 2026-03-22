@@ -41,7 +41,7 @@ spec:
               value: https://cringe.ttj.hu/auth/authorized
 
             - name: DATABASE_URL
-              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@cringe-db-svc/cringe-db-svc$(POSTGRES_DB)
+              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@cringe-db-svc/$(POSTGRES_DB)
 
           envFrom:
             - secretRef:
