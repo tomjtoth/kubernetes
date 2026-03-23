@@ -5,4 +5,4 @@ resources:
   - ../base
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/cringe:0.2.6
+    newName: tomjtoth/cringe:0.2.7
