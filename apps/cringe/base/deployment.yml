@@ -38,7 +38,7 @@ spec:
 
           env:
             - name: REDIRECT_URL
-              value: https://cringe.ttj.hu/auth/authorized
+              value: https://cringe.ttj.hu/api/auth/callback
 
             - name: DATABASE_URL
               value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@cringe-db-svc/$(POSTGRES_DB)
