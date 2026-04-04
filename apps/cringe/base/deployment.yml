@@ -47,6 +47,14 @@ spec:
             - secretRef:
                 name: cringe-secrets
 
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+
 ---
 apiVersion: apps/v1
 kind: Deployment
