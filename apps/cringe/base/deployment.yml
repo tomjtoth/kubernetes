@@ -73,10 +73,19 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        ttj.hu/storage: persistent
+
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+
       volumes:
         - name: db-data
-          # I actually don't care about this app's data, yet...
-          emptyDir: {}
+          hostPath:
+            path: /home/ubuntu/cringe-data
+            type: DirectoryOrCreate
 
       containers:
         - name: postgres

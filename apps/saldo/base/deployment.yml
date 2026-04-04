@@ -17,7 +17,7 @@ spec:
         app: saldo
     spec:
       nodeSelector:
-        role: saldo-runner
+        ttj.hu/storage: persistent
 
       securityContext:
         runAsUser: 1001
