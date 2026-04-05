@@ -75,19 +75,10 @@ spec:
       labels:
         app: postgres
     spec:
-      nodeSelector:
-        ttj.hu/storage: persistent
-
-      securityContext:
-        runAsUser: 1001
-        runAsGroup: 1001
-        fsGroup: 1001
-
       volumes:
         - name: db-data
-          hostPath:
-            path: /home/ubuntu/cringe-data
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: cringe-db-pvc
 
       containers:
         - name: postgres
