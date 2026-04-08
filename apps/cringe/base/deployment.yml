@@ -61,7 +61,6 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: cringe
   name: cringe-db-dep
   labels:
     app: postgres
