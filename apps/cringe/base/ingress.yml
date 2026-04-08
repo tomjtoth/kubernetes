@@ -4,6 +4,8 @@ kind: Ingress
 metadata:
   name: cringe-ing
   annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-body-size: "20m"
 
 spec:
