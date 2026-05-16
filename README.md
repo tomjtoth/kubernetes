@@ -3,7 +3,7 @@
 Follow the multi-node setup [here](https://docs.k0sproject.io/head/k0s-multi-node/#4-add-workers-to-the-cluster) - I deviated by using `--enable-worker --no-taints` for controller nodes.
 Then proceed with these configutation:
 
-- Ingress: bound to a specific node
+- Ingress: bound to a specific node (I direct all traffic to this node in Cloudflare)
 
   ```sh
   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -42,7 +42,8 @@ Then proceed with these configutation:
       --from-literal=api-token=$TOKEN
     ```
 
-  - Kustomize cluster, check generated TLS certificates [here](./cluster/cert-manager.yml)
+  - Adjust the specified `dnsNames` for the _wildcard-tls_ [here](./cluster/cert-manager.yml),
+    then:
 
     ```sh
     kubectl apply -k cluster/
@@ -108,6 +109,7 @@ Then proceed with these configutation:
       envsubst < cluster/migrator.yml | kubectl apply -f -
       ```
 
-    - Remove migrator
-    - Scale back to original or redeploy your app
+    - Remove migrator (rerun with `apply` -> `delete` above)
+    - Scale back to original replica count
+      - or redeploy your app
     - Restore ArgoCD's self-healing/auto-sync (?)
