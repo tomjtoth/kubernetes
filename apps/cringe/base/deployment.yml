@@ -90,6 +90,7 @@ spec:
           volumeMounts:
             - name: db-data
               mountPath: /var/lib/postgresql/18/docker
+              subPath: data
 
           readinessProbe:
             exec:
