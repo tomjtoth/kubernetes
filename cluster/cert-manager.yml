@@ -19,13 +19,14 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: ttj-wildcard
+  name: wildcard
   namespace: ingress-nginx
 spec:
-  secretName: ttj-wildcard-tls
+  secretName: wildcard-tls
   dnsNames:
     - "*.ttj.hu"
     - "*.saldo.ttj.hu"
+    - "*.cringe.ttj.hu"
   issuerRef:
     name: letsencrypt-cloudflare
     kind: ClusterIssuer
