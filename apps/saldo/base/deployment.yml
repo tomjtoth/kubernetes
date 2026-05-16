@@ -16,9 +16,6 @@ spec:
       labels:
         app: saldo
     spec:
-      nodeSelector:
-        ttj.hu/storage: persistent
-
       securityContext:
         runAsUser: 1001
         runAsGroup: 1001
@@ -26,9 +23,8 @@ spec:
 
       volumes:
         - name: db
-          hostPath:
-            path: /home/ubuntu/saldo-data
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: saldo-pvc
       containers:
         - name: saldo
           image: IMAGES/APP
