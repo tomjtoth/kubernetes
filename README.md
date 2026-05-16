@@ -1,41 +1,7 @@
 # k0s cluster
 
-Steps to reproduce my setup.
-
-- Install first control-plane node
-
-  ```sh
-  sudo k0s install controller --enable-worker --no-taints --start
-  ```
-
-  - Enroll new nodes
-    - On any control-plane node
-
-      ```sh
-      sudo k0s token create --role=worker # or --role=controller
-      ```
-
-    - On the new node
-
-      ```sh
-      echo "<PASTED_OUTPUT_FROM_ABOVE>" > token
-
-      # as worker
-      sudo k0s install worker \
-        --token-file token --start
-
-      # or as controller
-      sudo k0s install controller \
-        --enable-worker --no-taints \
-        --token-file=token --start
-      ```
-
-- Connect dev station (your laptop?) to a control-plane node
-
-  ```sh
-  ANY_CONTROL_PLANE_NODE=aws-amd64 \
-  ssh $ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
-  ```
+Follow the multi-node setup [here](https://docs.k0sproject.io/head/k0s-multi-node/#4-add-workers-to-the-cluster) - I deviated by using `--enable-worker --no-taints` for controller nodes.
+Then proceed with these configutation:
 
 - Ingress: bound to a specific node
 
