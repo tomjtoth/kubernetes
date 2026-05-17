@@ -1,40 +1,72 @@
 # k0s cluster
 
-Steps to reproduce my setup.
+Common steps for all nodes you're joining to the cluster,
+NODE_IP must be forced over wireguard's static IP definitions (maintained via  
+[this Ansible role](https://github.com/tomjtoth/ops/tree/main/roles/wireguard)).
+
+```sh
+# Download k0s
+curl --proto '=https' --tlsv1.2 -sSf https://get.k0s.sh | sudo sh
+```
 
 - Install first control-plane node
 
   ```sh
-  sudo k0s install controller --enable-worker --no-taints --start
+  mkdir /etc/k0s
+  k0s config create > /etc/k0s/k0s.yaml
+
+  export NODE_IP=$(ip addr | grep -Po ''10\.200\.0\.[0-9]+'')
+  sed -r 's/((address|peerAddress): ).+/\1'$NODE_IP'/g' -i /etc/k0s/k0s.yaml
+
+  k0s install controller -c /etc/k0s/k0s.yaml \
+    --enable-worker --no-taints \
+    --kubelet-extra-args="--node-ip=$NODE_IP" \
+    --start
   ```
 
   - Enroll new nodes
     - On any control-plane node
 
       ```sh
-      sudo k0s token create --role=worker # or --role=controller
+      k0s token create --expiry=1h --role=worker # or --role=controller
       ```
 
     - On the new node
 
       ```sh
       echo "<PASTED_OUTPUT_FROM_ABOVE>" > token
-
-      # as worker
-      sudo k0s install worker \
-        --token-file token --start
-
-      # or as controller
-      sudo k0s install controller \
-        --enable-worker --no-taints \
-        --token-file=token --start
       ```
 
-- Connect dev station (your laptop?) to a control-plane node
+      - as worker
+
+        ```sh
+        export NODE_IP=$(ip addr | grep -Po ''10\.200\.0\.[0-9]+'')
+        k0s install worker \
+          --kubelet-extra-args="--node-ip=$NODE_IP" \
+          --token-file token --start
+        ```
+
+      - as controller
+
+        ```sh
+        mkdir /etc/k0s
+        k0s config create > /etc/k0s/k0s.yaml
+
+        export NODE_IP=$(ip addr | grep -Po ''10\.200\.0\.[0-9]+'')
+        sed -r 's/((address|peerAddress): ).+/\1'$NODE_IP'/g' -i /etc/k0s/k0s.yaml
+
+        k0s install controller -c /etc/k0s/k0s.yaml \
+          --enable-worker --no-taints \
+          --kubelet-extra-args="--node-ip=$NODE_IP" \
+          --token-file token --start
+        ```
+
+The rest is done from your laptop:
+
+- Connect as admin
 
   ```sh
-  ANY_CONTROL_PLANE_NODE=aws-amd64 \
-  ssh $ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
+  ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
   ```
 
 - Ingress: bound to a specific node (I direct all traffic to this node in Cloudflare)
@@ -70,10 +102,9 @@ Steps to reproduce my setup.
     to cert-manager
 
     ```sh
-    TOKEN='YOUR_CLOUDFLARE_TOKEN' \
     kubectl create secret generic cloudflare-api-token \
       --namespace cert-manager \
-      --from-literal=api-token=$TOKEN
+      --from-literal=api-token=<YOUR_CLOUDFLARE_TOKEN>
     ```
 
   - Adjust the specified `dnsNames` for the _wildcard-tls_ [here](./cluster/cert-manager.yml),
