@@ -78,12 +78,12 @@ The rest is done from your laptop:
   helm install ingress-nginx ingress-nginx/ingress-nginx \
     --namespace ingress-nginx \
     --create-namespace \
+    --set controller.kind=DaemonSet \
     --set controller.hostNetwork=true \
     --set controller.service.enabled=false \
     --set controller.extraArgs.default-ssl-certificate=ingress-nginx/wildcard-tls \
     --set controller.config.ssl-redirect="true" \
-    --set controller.config.force-ssl-redirect="true" \
-    --set controller.nodeSelector."kubernetes\.io/hostname"=aws-amd64
+    --set controller.config.force-ssl-redirect="true"
   ```
 
 - TLS certificates
