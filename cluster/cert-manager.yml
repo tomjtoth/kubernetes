@@ -25,8 +25,7 @@ spec:
   secretName: wildcard-tls
   dnsNames:
     - "*.ttj.hu"
-    - "*.saldo.ttj.hu"
-    - "*.cringe.ttj.hu"
+    - "*.staging.ttj.hu"
   issuerRef:
     name: letsencrypt-cloudflare
     kind: ClusterIssuer
