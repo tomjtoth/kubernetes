@@ -5,6 +5,8 @@ metadata:
   namespace: ${APP_NAMESPACE}
 spec:
   restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: ${APP_HOST}
 
   containers:
     - name: migrator

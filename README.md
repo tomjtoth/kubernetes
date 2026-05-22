@@ -211,6 +211,7 @@ ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
     - Create migrator in the app's namespace
 
       ```sh
+      APP_HOST=azu-2 \
       APP_NAMESPACE=saldo \
       PVC_NAME=saldo-pvc \
       PATH_TO_DATA_ON_HOST=/home/ubuntu/saldo-data \
