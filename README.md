@@ -8,55 +8,68 @@ This setup uses a Virtual IP, keepalived and related scripts on controllers to u
 Paste the below function into your shell on the node you want to join.
 
 ```sh
-# usage: k0s_node [token [worker | controller]]
-k0s_node() {
+_join() {
 
   # Download k0s
   if [ ! -e /usr/local/bin/k0s ]; then
     curl --proto '=https' --tlsv1.2 -sSf https://get.k0s.sh | sudo sh
   fi
 
+  local join_flags tok=/tmp/k0s-join-token \
+    node_ip=$(ip addr | grep -Po '10.200.0.[0-9]+' | head -n 1) \
+    usage="
+    usage: _join ROLE [TOKEN]
+    where:
+      ROLE        'worker' or 'controller'
+      TOKEN       generated output of an existing controller
+    "
 
-
-  local node_ip=$(ip addr | grep -Po '10\.200\.0\.[0-9]+' | head -n 1)
-  local role=controller
-  local tok=/tmp/k0s-join-token
-  local join_flags=(
-    controller -c /etc/k0s/k0s.yaml \
-    --enable-worker --no-taints
-  )
+  if [ $# -lt 1 ]; then
+    echo "$usage"
+    return 1
+  fi
 
   # parse role
-  case "$2" in
-    worker) role=worker;;
-    controller|"") ;;
+  case "$1" in
+    worker)
+      join_flags+=(worker)
+    ;;
+
+    controller)
+      sudo mkdir /etc/k0s 2>/dev/null
+      k0s config create | sudo tee /etc/k0s/k0s.yaml >/dev/null
+
+      sudo yq -yi \
+        --arg nodeIp $node_ip \
+        '
+        .spec.api.address = $nodeIp |
+        .spec.storage.etcd.peerAddress = $nodeIp |
+        .spec.network.provider = "calico" |
+        .spec.network.calico.mode = "bird" |
+        .spec.network.nodeLocalLoadBalancing.enabled = true |
+        .spec.telemetry.enabled = true
+        ' /etc/k0s/k0s.yaml
+
+      join_flags+=(
+        controller -c /etc/k0s/k0s.yaml
+        --enable-worker --no-taints
+      )
+    ;;
+
+    -h|--help)
+      echo "$usage"
+      return 0
+    ;;
+
     *)
-      echo "unknown arg: $2"
-      return 1;;
+      echo "$usage"
+      return 1
+    ;;
   esac
 
 
-  if [ "$role" == "controller" ]; then
-    sudo mkdir /etc/k0s
-    k0s config create | sudo tee /etc/k0s/k0s.yaml >/dev/null
-
-    sudo yq -yi \
-      --arg vip 10.200.0.250 \
-      --arg nodeIp $node_ip '
-      .spec.api.address = $vip |
-      .spec.api.sans = [$vip] |
-      .spec.storage.etcd.peerAddress = $nodeIp |
-      .spec.network.provider = "calico" |
-      .spec.network.calico.mode = "bird" |
-      .spec.telemetry.enabled = true
-      ' /etc/k0s/k0s.yaml
-  else
-    join_flags=(worker)
-  fi
-
-
-  if [ -n "$1" ]; then
-    echo "$1" > $tok
+  if [ -n "$2" ]; then
+    echo "$2" > $tok
     join_flags+=(--token-file $tok)
   fi
 
@@ -70,7 +83,7 @@ k0s_node() {
 - Install first control-plane node
 
   ```sh
-  k0s_node
+  _join controller
   ```
 
 - Enroll new nodes
@@ -87,11 +100,11 @@ k0s_node() {
   - on the node to join
 
     ```sh
-    k0s_node "PASTED_OUTPUT_FROM_ABOVE" worker
+    _join worker "PASTED_OUTPUT_FROM_ABOVE"
 
     # OR
 
-    k0s_node "PASTED_OUTPUT_FROM_ABOVE" controller
+    _join controller "PASTED_OUTPUT_FROM_ABOVE"
     ```
 
 ## Attaching to cluster as admin
@@ -183,12 +196,12 @@ ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
   - Import your app's secrets
 
     ```sh
-    k0s_app(){
+    _app(){
         kubectl create ns $1
         kubectl -n $1 create secret generic $1-secrets --from-env-file=$2
     }
 
-    k0s_app namespace path/to/.env
+    _app namespace path/to/.env
     ```
 
   - Use ArgoCD or FluxCD for GitOps
