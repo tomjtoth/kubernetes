@@ -1,75 +1,110 @@
-# k0s cluster
+# Multi-cloud k0s cluster
 
-Common steps for all nodes you're joining to the cluster,
-NODE_IP must be forced over wireguard's static IP definitions (maintained via  
-[this Ansible role](https://github.com/tomjtoth/ops/tree/main/roles/wireguard)).
+Using a Wireguard mesh (maintained via [this Ansible role](https://github.com/tomjtoth/ops/tree/main/roles/wireguard)), you can bring all nodes to the same subnet, reducing the amount of ports needed to be open on firewalls.
+This setup uses a Virtual IP, keepalived and related scripts on controllers to update VIP owner on all Wireguard peers.
+
+## Common steps
+
+Paste the below function into your shell on the node you want to join.
 
 ```sh
-# Download k0s
-curl --proto '=https' --tlsv1.2 -sSf https://get.k0s.sh | sudo sh
+# usage: k0s_node [token [worker | controller]]
+k0s_node() {
+
+  # Download k0s
+  if [ ! -e /usr/local/bin/k0s ]; then
+    curl --proto '=https' --tlsv1.2 -sSf https://get.k0s.sh | sudo sh
+  fi
+
+
+
+  local node_ip=$(ip addr | grep -Po '10\.200\.0\.[0-9]+' | head -n 1)
+  local role=controller
+  local tok=/tmp/k0s-join-token
+  local join_flags=(
+    controller -c /etc/k0s/k0s.yaml \
+    --enable-worker --no-taints
+  )
+
+  # parse role
+  case "$2" in
+    worker) role=worker;;
+    controller|"") ;;
+    *)
+      echo "unknown arg: $2"
+      return 1;;
+  esac
+
+
+  if [ "$role" == "controller" ]; then
+    sudo mkdir /etc/k0s
+    k0s config create | sudo tee /etc/k0s/k0s.yaml >/dev/null
+
+    sudo yq -yi \
+      --arg vip 10.200.0.250 \
+      --arg nodeIp $node_ip '
+      .spec.api.address = $vip |
+      .spec.api.sans = [$vip] |
+      .spec.storage.etcd.peerAddress = $nodeIp |
+      .spec.network.provider = "calico" |
+      .spec.network.calico.mode = "bird" |
+      .spec.telemetry.enabled = true
+      ' /etc/k0s/k0s.yaml
+  else
+    join_flags=(worker)
+  fi
+
+
+  if [ -n "$1" ]; then
+    echo "$1" > $tok
+    join_flags+=(--token-file $tok)
+  fi
+
+
+  sudo k0s install ${join_flags[@]} \
+    --kubelet-extra-args="--node-ip=$node_ip" \
+    --start
+}
 ```
 
 - Install first control-plane node
 
   ```sh
-  mkdir /etc/k0s
-  k0s config create > /etc/k0s/k0s.yaml
-
-  export NODE_IP=$(ip addr | grep -Po ''10\.200\.0\.[0-9]+'')
-  sed -r 's/((address|peerAddress): ).+/\1'$NODE_IP'/g' -i /etc/k0s/k0s.yaml
-
-  k0s install controller -c /etc/k0s/k0s.yaml \
-    --enable-worker --no-taints \
-    --kubelet-extra-args="--node-ip=$NODE_IP" \
-    --start
+  k0s_node
   ```
 
-  - Enroll new nodes
-    - On any control-plane node
+- Enroll new nodes
+  - On any control-plane node
 
-      ```sh
-      k0s token create --expiry=1h --role=worker # or --role=controller
-      ```
+    ```sh
+    k0s token create --expiry=1h --role=worker
 
-    - On the new node
+    # OR
 
-      ```sh
-      echo "<PASTED_OUTPUT_FROM_ABOVE>" > token
-      ```
+    k0s token create --expiry=1h --role=controller
+    ```
 
-      - as worker
+  - on the node to join
 
-        ```sh
-        export NODE_IP=$(ip addr | grep -Po ''10\.200\.0\.[0-9]+'')
-        k0s install worker \
-          --kubelet-extra-args="--node-ip=$NODE_IP" \
-          --token-file token --start
-        ```
+    ```sh
+    k0s_node "PASTED_OUTPUT_FROM_ABOVE" worker
 
-      - as controller
+    # OR
 
-        ```sh
-        mkdir /etc/k0s
-        k0s config create > /etc/k0s/k0s.yaml
+    k0s_node "PASTED_OUTPUT_FROM_ABOVE" controller
+    ```
 
-        export NODE_IP=$(ip addr | grep -Po ''10\.200\.0\.[0-9]+'')
-        sed -r 's/((address|peerAddress): ).+/\1'$NODE_IP'/g' -i /etc/k0s/k0s.yaml
+## Attaching to cluster as admin
 
-        k0s install controller -c /etc/k0s/k0s.yaml \
-          --enable-worker --no-taints \
-          --kubelet-extra-args="--node-ip=$NODE_IP" \
-          --token-file token --start
-        ```
+Commands from this point forward are executed on your workstation (laptop?).
 
-The rest is done from your laptop:
+```sh
+ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
+```
 
-- Connect as admin
+### Installing charts
 
-  ```sh
-  ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
-  ```
-
-- Ingress: bound to a specific node (I direct all traffic to this node in Cloudflare)
+- Ingress
 
   ```sh
   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -86,7 +121,7 @@ The rest is done from your laptop:
     --set controller.config.force-ssl-redirect="true"
   ```
 
-- TLS certificates
+- Wildcard TLS certificates for the whole cluster
   - Add cert-manager
 
     ```sh
@@ -104,7 +139,7 @@ The rest is done from your laptop:
     ```sh
     kubectl create secret generic cloudflare-api-token \
       --namespace cert-manager \
-      --from-literal=api-token=<YOUR_CLOUDFLARE_TOKEN>
+      --from-literal=api-token="YOUR_CLOUDFLARE_API_TOKEN"
     ```
 
   - Adjust the specified `dnsNames` for the _wildcard-tls_ [here](./cluster/cert-manager.yml),
@@ -124,7 +159,7 @@ The rest is done from your laptop:
     --create-namespace
   ```
 
-- Add monitoring
+- Monitoring
 
   ```sh
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -134,28 +169,26 @@ The rest is done from your laptop:
     --create-namespace
   ```
 
+- GitOps
+
+  ```sh
+  helm repo add argo https://argoproj.github.io/argo-helm
+  helm repo update
+  helm install argocd argo/argo-cd \
+    --namespace argocd \
+    --create-namespace
+  ```
+
 - Deploy apps
-  - ArgoCD optionally
+  - Import your app's secrets
 
     ```sh
-    helm repo add argo https://argoproj.github.io/argo-helm
-    helm repo update
-    helm install argocd argo/argo-cd \
-      --namespace argocd \
-      --create-namespace
-    ```
-
-  - Create secrets if necessary
-
-    ```sh
-    alias {é,ö}secrets='f(){
+    k0s_app(){
         kubectl create ns $1
         kubectl -n $1 create secret generic $1-secrets --from-env-file=$2
-        unset -f f
     }
-    f'
 
-    ösecrets namespace path/to/.env
+    k0s_app namespace path/to/.env
     ```
 
   - Use ArgoCD or FluxCD for GitOps
@@ -184,7 +217,7 @@ The rest is done from your laptop:
       envsubst < cluster/migrator.yml | kubectl apply -f -
       ```
 
-    - Remove migrator (rerun with `apply` -> `delete` above)
+    - Remove migrator (rerun the above command, only replace `apply` -> `delete`)
     - Scale back to original replica count
       - or redeploy your app
     - Restore ArgoCD's self-healing/auto-sync (?)
