@@ -4,8 +4,7 @@ namespace: staging-saldo
 resources:
   - ../base
   - rbac.yml
-  - argo-hooks/pre-sync.yml
-  - argo-hooks/post-sync.yml
+  - argocd-hook.yml
 
 patches:
   - path: deployment.yml
