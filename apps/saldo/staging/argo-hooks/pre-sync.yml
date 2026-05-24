@@ -5,7 +5,6 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeCreation,HookSucceeded
-    argocd.argoproj.io/sync-wave: "-1"
 spec:
   template:
     spec:
@@ -21,7 +20,7 @@ spec:
               echo "Determining active PVC..."
 
               ACTIVE=$(kubectl get deploy saldo-dep -n staging-saldo \
-                -o jsonpath='{.spec.template.spec.volumes[0].persistentVolumeClaim.claimName}'
+                -o jsonpath='{.spec.template.spec.volumes[0].persistentVolumeClaim.claimName}' 2>/dev/null || true
               )
 
               echo "Active PVC: $ACTIVE"
