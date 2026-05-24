@@ -108,7 +108,7 @@ spec:
                   {
                     "op": "replace",
                     "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
-                    "value": "'$ACTIVE'"
+                    "value": "'$ACTIVE_PVC'"
                   }
                 ]'
 
