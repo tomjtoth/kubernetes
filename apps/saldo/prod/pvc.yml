@@ -1,0 +1,4 @@
+- op: add
+  path: /metadata/labels
+  value:
+    recurring-job-group.longhorn.io/apps: enabled
