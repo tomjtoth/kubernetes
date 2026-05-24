@@ -22,3 +22,8 @@ spec:
       jsonPointers:
         - /spec/volumeName
         - /spec/resources/requests/storage
+
+    - group: "apps"
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
