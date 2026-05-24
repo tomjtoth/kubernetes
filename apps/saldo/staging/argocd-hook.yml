@@ -112,6 +112,28 @@ spec:
                   }
                 ]'
 
+              echo "Waiting for PVC switch..."
+              kubectl -n staging-saldo rollout status deployment/saldo-dep --timeout=5m
+
+              echo "Waiting for old PVC to stop being referenced..."
+              until ! kubectl -n staging-saldo get pods -o json \
+                | jq -e '
+                    .items[]
+                    | .spec.volumes[]?
+                    | select(.persistentVolumeClaim.claimName == "'$ACTIVE_PVC'"")
+                  ' >/dev/null
+              do
+                sleep 1
+              done
+
+              echo "Waiting for Longhorn volume to detach..."
+              until [ "$(
+                kubectl -n longhorn-system get volume $ACTIVE_VOL \
+                  -o jsonpath='{.status.state}' 2>/dev/null
+              )" = "detached" ]; do
+                sleep 1
+              done
+
               echo "Deleting old resources"
               kubectl -n staging-saldo delete pvc $ACTIVE_PVC --ignore-not-found
               kubectl delete pv $ACTIVE_PV --ignore-not-found
