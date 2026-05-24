@@ -1,9 +1,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: staging-saldo-restore
+  name: staging-saldo-data-cloner
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeCreation,HookSucceeded
 spec:
   template:
@@ -18,14 +18,13 @@ spec:
             - -ceu
             - |
               echo "Determining active PVC..."
-
-              ACTIVE=$(kubectl get deploy saldo-dep -n staging-saldo \
+              ACTIVE_PVC=$(kubectl get deploy saldo-dep -n staging-saldo \
                 -o jsonpath='{.spec.template.spec.volumes[0].persistentVolumeClaim.claimName}' 2>/dev/null || true
               )
 
-              echo "Active PVC: $ACTIVE"
+              echo "Active PVC: $ACTIVE_PVC"
 
-              if [ "$ACTIVE" = "staging-saldo-pvc-0" ]; then
+              if [ "$ACTIVE_PVC" = "staging-saldo-pvc-0" ]; then
                 TARGET_VOL=staging-saldo-vol-1
                 TARGET_PV=staging-saldo-pv-1
                 TARGET_PVC=staging-saldo-pvc-1
@@ -95,3 +94,19 @@ spec:
                 volumeName: $TARGET_PV
                 storageClassName: longhorn
               EOF
+
+              echo "Patching deployment to use new PVC"
+              kubectl -n staging-saldo patch deployment saldo-dep \
+                --type=json \
+                -p='[
+                  {
+                    "op": "replace",
+                    "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
+                    "value": "'$ACTIVE'"
+                  }
+                ]'
+
+              echo "Deleting old resources"
+              kubectl -n staging-saldo delete pvc $ACTIVE_PVC --ignore-not-found
+              kubectl delete pv $ACTIVE_PV --ignore-not-found
+              kubectl -n longhorn-system delete volume $ACTIVE_VOL --ignore-not-found

@@ -3,18 +3,12 @@ kind: ServiceAccount
 metadata:
   name: staging-saldo-hook
   namespace: staging-saldo
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/sync-wave: -1
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: staging-saldo-hook
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/sync-wave: -1
 
 rules:
   - apiGroups:
@@ -56,9 +50,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: staging-saldo-hook
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/sync-wave: -1
 
 subjects:
   - kind: ServiceAccount
