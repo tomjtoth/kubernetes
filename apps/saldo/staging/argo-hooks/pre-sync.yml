@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: staging-saldo-restore
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      serviceAccountName: staging-saldo-hook
+      restartPolicy: Never
+      containers:
+        - name: restore
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -ceu
+            - |
+              echo "Determining active PVC..."
+
+              ACTIVE=$(kubectl get deploy saldo-dep -n staging-saldo \
+                -o jsonpath='{.spec.template.spec.volumes[0].persistentVolumeClaim.claimName}'
+              )
+
+              echo "Active PVC: $ACTIVE"
+
+              if [ "$ACTIVE" = "staging-saldo-pvc-0" ]; then
+                TARGET_VOL=staging-saldo-vol-1
+                TARGET_PV=staging-saldo-pv-1
+                TARGET_PVC=staging-saldo-pvc-1
+              else
+                TARGET_VOL=staging-saldo-vol-0
+                TARGET_PV=staging-saldo-pv-0
+                TARGET_PVC=staging-saldo-pvc-0
+              fi
+
+              echo "TARGET_PV: $TARGET_PV"
+              echo "TARGET_PVC: $TARGET_PVC"
+
+              echo "Finding latest backup..."
+              PVC=$(kubectl -n longhorn-system get volumes.longhorn.io \
+                -o jsonpath='{.items[?(@.status.kubernetesStatus.pvcName=="saldo-pvc")].metadata.name}'
+              )
+              BACKUP=$(kubectl -n longhorn-system get backupvolumes.longhorn.io \
+                -o jsonpath="{.items[?(@.spec.volumeName=='$PVC')].status.lastBackupName}"
+              )
+              BACKUP_URL=$(kubectl get backup.longhorn.io $BACKUP -n longhorn-system -o jsonpath='{.status.url}')
+              BACKUP_SIZE=$(kubectl get backup.longhorn.io $BACKUP -n longhorn-system -o jsonpath='{.status.volumeSize}')
+
+              echo "Creating staging PV from backup..."
+              cat <<EOF | kubectl apply -f -
+              apiVersion: longhorn.io/v1beta2
+              kind: Volume
+              metadata:
+                name: $TARGET_VOL
+                namespace: longhorn-system
+              spec:
+                size: "$BACKUP_SIZE"
+                fromBackup: "$BACKUP_URL"
+                numberOfReplicas: 1
+                frontend: blockdev
+                dataEngine: v1
+              EOF
+
+              # wait for PV to be ready
+              while [ "$(kubectl get volume $TARGET_VOL -n longhorn-system -o jsonpath='{.status.restoreRequired}')" != false ]; do
+                sleep 1
+              done
+
+              cat <<EOF | kubectl apply -f -
+              apiVersion: v1
+              kind: PersistentVolume
+              metadata:
+                name: $TARGET_PV
+              spec:
+                capacity:
+                  storage: 100Mi
+                volumeMode: Filesystem
+                accessModes: [ReadWriteOnce]
+                storageClassName: longhorn
+                csi:
+                  driver: driver.longhorn.io
+                  volumeHandle: $TARGET_VOL
+              ---
+              apiVersion: v1
+              kind: PersistentVolumeClaim
+              metadata:
+                name: $TARGET_PVC
+                namespace: staging-saldo
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 100Mi
+                volumeName: $TARGET_PV
+                storageClassName: longhorn
+              EOF
+
+              echo "Patching deployment..."
+              kubectl -n staging-saldo patch deployment saldo-dep \
+                --type=json \
+                -p='[
+                  {
+                    "op": "replace",
+                    "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
+                    "value": "'$TARGET_PVC'"
+                  }
+                ]'

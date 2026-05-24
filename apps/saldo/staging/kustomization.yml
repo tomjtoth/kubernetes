@@ -3,6 +3,9 @@ kind: Kustomization
 namespace: staging-saldo
 resources:
   - ../base
+  - rbac.yml
+  - argo-hooks/pre-sync.yml
+
 patches:
   - path: deployment.yml
     target:
@@ -16,6 +19,11 @@ patches:
       version: v1
       kind: Ingress
       name: saldo-ing
+  - path: pvc.yml
+    target:
+      version: v1
+      kind: PersistentVolumeClaim
+      name: saldo-pvc
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/saldo:1.0.8
+    newName: tomjtoth/saldo:latest

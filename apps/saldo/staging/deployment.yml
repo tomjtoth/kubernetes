@@ -1,16 +1,11 @@
-- op: add
-  path: /spec/template/spec/containers/0/command
-  value:
-    - sh
-    - -c
-    - cp /app/data/prod.db /app/data/staging.db && exec node server.js
-
 - op: replace
   path: /spec/template/spec/containers/0/env/0/value
-  value: https://staging.saldo.ttj.hu/api/auth
+  value: https://saldo.staging.ttj.hu/api/auth
 
-- op: add
-  path: /spec/template/spec/containers/0/env/-
-  value:
-    name: DB_PATH
-    value: /app/data/staging.db
+- op: replace
+  path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+  value: staging-saldo-pvc-0
+
+- op: replace
+  path: /spec/template/spec/containers/0/envFrom/0/secretRef/name
+  value: staging-saldo-secrets
