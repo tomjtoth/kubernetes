@@ -2,10 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: staging-saldo
 resources:
-  - ../base
+  - ../base/deployment.yml
+  - ../base/service.yml
+  - ../base/ingress.yml
   - rbac.yml
-  - argo-hooks/pre-sync.yml
-  - argo-hooks/post-sync.yml
+  - argocd-hooks.yml
 
 patches:
   - path: deployment.yml
@@ -20,11 +21,6 @@ patches:
       version: v1
       kind: Ingress
       name: saldo-ing
-  - path: pvc.yml
-    target:
-      version: v1
-      kind: PersistentVolumeClaim
-      name: saldo-pvc
 images:
   - name: IMAGES/APP
     newName: tomjtoth/saldo:latest
