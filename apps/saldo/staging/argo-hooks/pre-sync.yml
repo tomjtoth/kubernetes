@@ -35,7 +35,6 @@ spec:
                 TARGET_PVC=staging-saldo-pvc-0
               fi
 
-              echo "TARGET_PV: $TARGET_PV"
               echo "TARGET_PVC: $TARGET_PVC"
 
               echo "Finding latest backup..."
@@ -96,14 +95,3 @@ spec:
                 volumeName: $TARGET_PV
                 storageClassName: longhorn
               EOF
-
-              echo "Patching deployment..."
-              kubectl -n staging-saldo patch deployment saldo-dep \
-                --type=json \
-                -p='[
-                  {
-                    "op": "replace",
-                    "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
-                    "value": "'$TARGET_PVC'"
-                  }
-                ]'

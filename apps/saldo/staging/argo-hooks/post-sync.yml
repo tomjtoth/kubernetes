@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: staging-saldo-cleanup
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      serviceAccountName: staging-saldo-hook
+      restartPolicy: Never
+      containers:
+        - name: cleanup
+          image: bitnami/kubectl
+          command:
+            - sh
+            - -ceu
+            - |
+              ACTIVE=$(kubectl get deploy saldo-dep -n staging-saldo \
+                -o jsonpath='{.spec.template.spec.volumes[0].persistentVolumeClaim.claimName}')
+
+              if [ "$ACTIVE" = "staging-saldo-pvc-0" ]; then
+                OLD=staging-saldo-pvc-1
+                ACTIVE=staging-saldo-pvc-0
+              else
+                OLD=staging-saldo-pvc-0
+                ACTIVE=staging-saldo-pvc-1
+              fi
+
+
+              echo "Patching deployment to use new PVC"
+              kubectl -n staging-saldo patch deployment saldo-dep \
+                --type=json \
+                -p='[
+                  {
+                    "op": "replace",
+                    "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
+                    "value": "'$ACTIVE'"
+                  }
+                ]'
+
+              echo "Deleting old PVC: $OLD"
+              kubectl delete pvc $OLD -n staging-saldo --ignore-not-found
