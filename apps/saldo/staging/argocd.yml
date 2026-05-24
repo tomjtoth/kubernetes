@@ -3,13 +3,20 @@ kind: Application
 metadata:
   name: staging-saldo
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/sync-wave: -1
 spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/tomjtoth/kubernetes
+    targetRevision: HEAD
+    path: apps/saldo/staging
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging-saldo
+
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim
-      namespace: staging-saldo
       jsonPointers:
         - /spec/volumeName
