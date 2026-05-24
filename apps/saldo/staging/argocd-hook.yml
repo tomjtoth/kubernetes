@@ -126,6 +126,20 @@ spec:
                 sleep 1
               done
 
+              echo "Deleting old PVC"
+              kubectl -n staging-saldo delete pvc $ACTIVE_PVC --ignore-not-found
+
+              echo "Waiting for PV to be released..."
+              until [ "$(
+                kubectl get pv "$ACTIVE_PV" \
+                  -o jsonpath='{.status.phase}' 2>/dev/null
+              )" = "Released" ]; do
+                sleep 1
+              done
+
+              echo "Deleting old PV"
+              kubectl delete pv $ACTIVE_PV --ignore-not-found
+
               echo "Waiting for Longhorn volume to detach..."
               until [ "$(
                 kubectl -n longhorn-system get volume $ACTIVE_VOL \
@@ -134,7 +148,5 @@ spec:
                 sleep 1
               done
 
-              echo "Deleting old resources"
-              kubectl -n staging-saldo delete pvc $ACTIVE_PVC --ignore-not-found
-              kubectl delete pv $ACTIVE_PV --ignore-not-found
+              echo "Deleting old Longhorn volume"
               kubectl -n longhorn-system delete volume $ACTIVE_VOL --ignore-not-found
