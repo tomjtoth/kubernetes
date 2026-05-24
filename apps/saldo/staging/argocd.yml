@@ -15,8 +15,10 @@ spec:
     server: https://kubernetes.default.svc
     namespace: staging-saldo
 
+  # using a 1MiB dummy as placeholder for the 0|1 suffixed pvc to work
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim
       jsonPointers:
         - /spec/volumeName
+        - /spec/resources/requests/storage
