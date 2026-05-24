@@ -25,10 +25,16 @@ spec:
               echo "Active PVC: $ACTIVE_PVC"
 
               if [ "$ACTIVE_PVC" = "staging-saldo-pvc-0" ]; then
+                ACTIVE_PV=staging-saldo-pv-0
+                ACTIVE_VOL=staging-saldo-vol-0
+
                 TARGET_VOL=staging-saldo-vol-1
                 TARGET_PV=staging-saldo-pv-1
                 TARGET_PVC=staging-saldo-pvc-1
               else
+                ACTIVE_PV=staging-saldo-pv-1
+                ACTIVE_VOL=staging-saldo-vol-1
+                
                 TARGET_VOL=staging-saldo-vol-0
                 TARGET_PV=staging-saldo-pv-0
                 TARGET_PVC=staging-saldo-pvc-0
