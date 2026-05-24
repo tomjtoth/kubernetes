@@ -21,7 +21,7 @@ rules:
       -
     resources:
       - persistentvolumeclaims
-      - pods
+      - persistentvolumes
     verbs:
       - get
       - list
@@ -43,8 +43,9 @@ rules:
   - apiGroups:
       - longhorn.io
     resources:
-      - backupvolumes
+      - backups
       - volumes
+      - backupvolumes
     verbs:
       - get
       - list
