@@ -1,0 +1,12 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: staging-saldo
+  namespace: argocd
+spec:
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      namespace: staging-saldo
+      jsonPointers:
+        - /spec/volumeName
