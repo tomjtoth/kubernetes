@@ -44,6 +44,7 @@ rules:
       - longhorn.io
     resources:
       - backupvolumes
+      - volumes
     verbs:
       - get
       - list
