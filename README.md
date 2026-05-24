@@ -228,7 +228,7 @@ ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
       APP_NAMESPACE=saldo \
       PVC_NAME=saldo-pvc \
       PATH_TO_DATA_ON_HOST=/home/ubuntu/saldo-data \
-      envsubst < cluster/migrator.yml | kubectl apply -f -
+      envsubst < cluster/app-data-migrator.yml | kubectl apply -f -
       ```
 
     - Remove migrator (rerun the above command, only replace `apply` -> `delete`)
