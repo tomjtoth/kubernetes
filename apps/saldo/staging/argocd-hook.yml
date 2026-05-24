@@ -120,7 +120,7 @@ spec:
                 | jq -e '
                     .items[]
                     | .spec.volumes[]?
-                    | select(.persistentVolumeClaim.claimName == "'$ACTIVE_PVC'"")
+                    | select(.persistentVolumeClaim.claimName == "'$ACTIVE_PVC'")
                   ' >/dev/null
               do
                 sleep 1
