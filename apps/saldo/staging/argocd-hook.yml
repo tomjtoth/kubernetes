@@ -32,6 +32,7 @@ spec:
                 TARGET_PV=staging-saldo-pv-1
                 TARGET_PVC=staging-saldo-pvc-1
               else
+                ACTIVE_PVC=staging-saldo-pvc-1
                 ACTIVE_PV=staging-saldo-pv-1
                 ACTIVE_VOL=staging-saldo-vol-1
                 
