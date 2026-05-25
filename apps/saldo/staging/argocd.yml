@@ -16,10 +16,8 @@ spec:
     namespace: staging-saldo
 
   syncPolicy:
-    automated:
-      prune: false
-      selfHeal: false
-      enabled: false
+    syncOptions:
+      - RespectIgnoreDifferences=true
 
   ignoreDifferences:
     - group: "apps"
