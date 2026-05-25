@@ -17,59 +17,75 @@ spec:
             - sh
             - -ceu
             - |
-              echo "Determining active PVC..."
-              ACTIVE_PVC=$(kubectl get deploy saldo-dep -n staging-saldo \
-                -o jsonpath='{.spec.template.spec.volumes[0].persistentVolumeClaim.claimName}' 2>/dev/null || true
-              )
+              VOL=staging-saldo-vol
+              PV=staging-saldo-pv
+              PVC=staging-saldo-pvc
 
-              echo "Active PVC: $ACTIVE_PVC"
+              echo "Waiting for old PVC to stop being referenced..."
+              until ! kubectl -n staging-saldo get pods -o json \
+                | jq -e '
+                    .items[]
+                    | .spec.volumes[]?
+                    | select(.persistentVolumeClaim.claimName == "'$PVC'")
+                  ' >/dev/null || 1
+              do
+                sleep 1
+              done
 
-              if [ "$ACTIVE_PVC" = "staging-saldo-pvc-0" ]; then
-                ACTIVE_PV=staging-saldo-pv-0
-                ACTIVE_VOL=staging-saldo-vol-0
+              echo "Deleting old PVC"
+              kubectl -n staging-saldo delete pvc $PVC --ignore-not-found
 
-                TARGET_VOL=staging-saldo-vol-1
-                TARGET_PV=staging-saldo-pv-1
-                TARGET_PVC=staging-saldo-pvc-1
-              else
-                ACTIVE_PVC=staging-saldo-pvc-1
-                ACTIVE_PV=staging-saldo-pv-1
-                ACTIVE_VOL=staging-saldo-vol-1
-                
-                TARGET_VOL=staging-saldo-vol-0
-                TARGET_PV=staging-saldo-pv-0
-                TARGET_PVC=staging-saldo-pvc-0
-              fi
+              echo "Waiting for PV to be released..."
+              until [ "$(
+                kubectl get pv "$PV" \
+                  -o jsonpath='{.status.phase}' 2>/dev/null \
+                  || echo Released
+              )" = "Released" ]; do
+                sleep 1
+              done
 
-              echo "TARGET_PVC: $TARGET_PVC"
+              echo "Deleting old PV"
+              kubectl delete pv $PV --ignore-not-found
+
+              echo "Waiting for Longhorn volume to detach..."
+              until [ "$(
+                kubectl -n longhorn-system get volume $VOL \
+                  -o jsonpath='{.status.state}' 2>/dev/null \
+                  || echo detached
+              )" = "detached" ]; do
+                sleep 1
+              done
+
+              echo "Deleting old Longhorn volume"
+              kubectl -n longhorn-system delete volume $VOL --ignore-not-found
 
               echo "Finding latest backup..."
-              PVC=$(kubectl -n longhorn-system get volumes.longhorn.io \
+              PROD_PVC=$(kubectl -n longhorn-system get volumes.longhorn.io \
                 -o jsonpath='{.items[?(@.status.kubernetesStatus.pvcName=="saldo-pvc")].metadata.name}'
               )
-              BACKUP=$(kubectl -n longhorn-system get backupvolumes.longhorn.io \
-                -o jsonpath="{.items[?(@.spec.volumeName=='$PVC')].status.lastBackupName}"
+              PROD_BACKUP=$(kubectl -n longhorn-system get backupvolumes.longhorn.io \
+                -o jsonpath="{.items[?(@.spec.volumeName=='$PROD_PVC')].status.lastBackupName}"
               )
-              BACKUP_URL=$(kubectl get backup.longhorn.io $BACKUP -n longhorn-system -o jsonpath='{.status.url}')
-              BACKUP_SIZE=$(kubectl get backup.longhorn.io $BACKUP -n longhorn-system -o jsonpath='{.status.volumeSize}')
+              PROD_BACKUP_URL=$(kubectl get backup.longhorn.io $PROD_BACKUP -n longhorn-system -o jsonpath='{.status.url}')
+              PROD_BACKUP_SIZE=$(kubectl get backup.longhorn.io $PROD_BACKUP -n longhorn-system -o jsonpath='{.status.volumeSize}')
 
-              echo "Creating staging PV from backup..."
+              echo "Creating staging VOL from backup..."
               cat <<EOF | kubectl apply -f -
               apiVersion: longhorn.io/v1beta2
               kind: Volume
               metadata:
-                name: $TARGET_VOL
+                name: $VOL
                 namespace: longhorn-system
               spec:
-                size: "$BACKUP_SIZE"
-                fromBackup: "$BACKUP_URL"
+                size: "$PROD_BACKUP_SIZE"
+                fromBackup: "$PROD_BACKUP_URL"
                 numberOfReplicas: 1
                 frontend: blockdev
                 dataEngine: v1
               EOF
 
-              # wait for PV to be ready
-              while [ "$(kubectl get volume $TARGET_VOL -n longhorn-system -o jsonpath='{.status.restoreRequired}')" != false ]; do
+              echo "Waiting for VOL to be ready..."
+              while [ "$(kubectl get volume $VOL -n longhorn-system -o jsonpath='{.status.restoreRequired}')" != false ]; do
                 sleep 1
               done
 
@@ -77,7 +93,7 @@ spec:
               apiVersion: v1
               kind: PersistentVolume
               metadata:
-                name: $TARGET_PV
+                name: $PV
               spec:
                 capacity:
                   storage: 100Mi
@@ -86,19 +102,19 @@ spec:
                 storageClassName: longhorn
                 csi:
                   driver: driver.longhorn.io
-                  volumeHandle: $TARGET_VOL
+                  volumeHandle: $VOL
               ---
               apiVersion: v1
               kind: PersistentVolumeClaim
               metadata:
-                name: $TARGET_PVC
+                name: $PVC
                 namespace: staging-saldo
               spec:
                 accessModes: [ReadWriteOnce]
                 resources:
                   requests:
                     storage: 100Mi
-                volumeName: $TARGET_PV
+                volumeName: $PV
                 storageClassName: longhorn
               EOF
 
@@ -109,45 +125,6 @@ spec:
                   {
                     "op": "replace",
                     "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
-                    "value": "'$TARGET_PVC'"
+                    "value": "'$PVC'"
                   }
                 ]'
-
-              echo "Waiting for PVC switch..."
-              kubectl -n staging-saldo rollout status deployment/saldo-dep --timeout=5m
-
-              echo "Waiting for old PVC to stop being referenced..."
-              until ! kubectl -n staging-saldo get pods -o json \
-                | jq -e '
-                    .items[]
-                    | .spec.volumes[]?
-                    | select(.persistentVolumeClaim.claimName == "'$ACTIVE_PVC'")
-                  ' >/dev/null
-              do
-                sleep 1
-              done
-
-              echo "Deleting old PVC"
-              kubectl -n staging-saldo delete pvc $ACTIVE_PVC --ignore-not-found
-
-              echo "Waiting for PV to be released..."
-              until [ "$(
-                kubectl get pv "$ACTIVE_PV" \
-                  -o jsonpath='{.status.phase}' 2>/dev/null
-              )" = "Released" ]; do
-                sleep 1
-              done
-
-              echo "Deleting old PV"
-              kubectl delete pv $ACTIVE_PV --ignore-not-found
-
-              echo "Waiting for Longhorn volume to detach..."
-              until [ "$(
-                kubectl -n longhorn-system get volume $ACTIVE_VOL \
-                  -o jsonpath='{.status.state}' 2>/dev/null
-              )" = "detached" ]; do
-                sleep 1
-              done
-
-              echo "Deleting old Longhorn volume"
-              kubectl -n longhorn-system delete volume $ACTIVE_VOL --ignore-not-found
