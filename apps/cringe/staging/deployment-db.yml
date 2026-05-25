@@ -1,0 +1,7 @@
+- op: replace
+  path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+  value: staging-cringe-db-pvc-dummy
+
+- op: replace
+  path: /spec/template/spec/containers/0/envFrom/0/secretRef/name
+  value: staging-cringe-secrets

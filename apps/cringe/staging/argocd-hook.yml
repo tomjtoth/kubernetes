@@ -1,0 +1,130 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: staging-cringe-data-cloner
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      serviceAccountName: staging-cringe-hook
+      restartPolicy: Never
+      containers:
+        - name: restore
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -ceu
+            - |
+              VOL=staging-cringe-db-vol
+              PV=staging-cringe-db-pv
+              PVC=staging-cringe-db-pvc
+
+              echo "Waiting for old PVC to stop being referenced..."
+              until ! kubectl -n staging-cringe get pods -o json \
+                | jq -e '
+                    .items[]
+                    | .spec.volumes[]?
+                    | select(.persistentVolumeClaim.claimName == "'$PVC'")
+                  ' >/dev/null || 1
+              do
+                sleep 1
+              done
+
+              echo "Deleting old PVC"
+              kubectl -n staging-cringe delete pvc $PVC --ignore-not-found
+
+              echo "Waiting for PV to be released..."
+              until [ "$(
+                kubectl get pv "$PV" \
+                  -o jsonpath='{.status.phase}' 2>/dev/null \
+                  || echo Released
+              )" = "Released" ]; do
+                sleep 1
+              done
+
+              echo "Deleting old PV"
+              kubectl delete pv $PV --ignore-not-found
+
+              echo "Waiting for Longhorn volume to detach..."
+              until [ "$(
+                kubectl -n longhorn-system get volume $VOL \
+                  -o jsonpath='{.status.state}' 2>/dev/null \
+                  || echo detached
+              )" = "detached" ]; do
+                sleep 1
+              done
+
+              echo "Deleting old Longhorn volume"
+              kubectl -n longhorn-system delete volume $VOL --ignore-not-found
+
+              echo "Finding latest backup..."
+              PROD_PVC=$(kubectl -n longhorn-system get volumes.longhorn.io \
+                -o jsonpath='{.items[?(@.status.kubernetesStatus.pvcName=="cringe-db-pvc")].metadata.name}'
+              )
+              PROD_BACKUP=$(kubectl -n longhorn-system get backupvolumes.longhorn.io \
+                -o jsonpath="{.items[?(@.spec.volumeName=='$PROD_PVC')].status.lastBackupName}"
+              )
+              PROD_BACKUP_URL=$(kubectl get backup.longhorn.io $PROD_BACKUP -n longhorn-system -o jsonpath='{.status.url}')
+              PROD_BACKUP_SIZE=$(kubectl get backup.longhorn.io $PROD_BACKUP -n longhorn-system -o jsonpath='{.status.volumeSize}')
+
+              echo "Creating staging VOL from backup..."
+              cat <<EOF | kubectl apply -f -
+              apiVersion: longhorn.io/v1beta2
+              kind: Volume
+              metadata:
+                name: $VOL
+                namespace: longhorn-system
+              spec:
+                size: "$PROD_BACKUP_SIZE"
+                fromBackup: "$PROD_BACKUP_URL"
+                numberOfReplicas: 1
+                frontend: blockdev
+                dataEngine: v1
+              EOF
+
+              echo "Waiting for VOL to be ready..."
+              while [ "$(kubectl get volume $VOL -n longhorn-system -o jsonpath='{.status.restoreRequired}')" != false ]; do
+                sleep 1
+              done
+
+              cat <<EOF | kubectl apply -f -
+              apiVersion: v1
+              kind: PersistentVolume
+              metadata:
+                name: $PV
+              spec:
+                capacity:
+                  storage: 5Gi
+                volumeMode: Filesystem
+                accessModes: [ReadWriteOnce]
+                storageClassName: longhorn
+                csi:
+                  driver: driver.longhorn.io
+                  volumeHandle: $VOL
+              ---
+              apiVersion: v1
+              kind: PersistentVolumeClaim
+              metadata:
+                name: $PVC
+                namespace: staging-cringe
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 5Gi
+                volumeName: $PV
+                storageClassName: longhorn
+              EOF
+
+              echo "Patching deployment to use new PVC"
+              kubectl -n staging-cringe patch deployment cringe-db-dep \
+                --type=json \
+                -p='[
+                  {
+                    "op": "replace",
+                    "path": "/spec/template/spec/volumes/0/persistentVolumeClaim/claimName",
+                    "value": "'$PVC'"
+                  }
+                ]'

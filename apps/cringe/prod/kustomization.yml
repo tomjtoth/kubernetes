@@ -6,3 +6,10 @@ resources:
 images:
   - name: IMAGES/APP
     newName: tomjtoth/cringe:0.8.1
+
+patches:
+  - path: pvc.yml
+    target:
+      version: v1
+      kind: PersistentVolumeClaim
+      name: cringe-db-pvc
