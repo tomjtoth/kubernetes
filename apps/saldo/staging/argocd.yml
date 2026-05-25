@@ -15,6 +15,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: staging-saldo
 
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+      enabled: false
+
   ignoreDifferences:
     - group: "apps"
       kind: Deployment
