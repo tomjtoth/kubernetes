@@ -4,7 +4,7 @@
 
 - op: replace
   path: /spec/template/spec/volumes/0/persistentVolumeClaim/claimName
-  value: staging-saldo-pvc
+  value: staging-saldo-pvc-dummy
 
 - op: replace
   path: /spec/template/spec/containers/0/envFrom/0/secretRef/name

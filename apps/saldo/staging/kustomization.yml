@@ -4,6 +4,7 @@ namespace: staging-saldo
 resources:
   - ../base
   - rbac.yml
+  - argocd.yml
   - argocd-hook.yml
 
 patches:
