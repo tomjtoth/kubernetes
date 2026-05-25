@@ -204,7 +204,11 @@ ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
     _app namespace path/to/.env
     ```
 
-  - Use ArgoCD or FluxCD for GitOps
+  - Use ArgoCD or FluxCD for GitOps, e.g.:
+
+    ```sh
+    kubectl apply -f apps/saldo/staging/argocd.yml
+    ```
 
   - Or deploy manually
 

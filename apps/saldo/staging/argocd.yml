@@ -16,6 +16,10 @@ spec:
     namespace: staging-saldo
 
   syncPolicy:
+    automated:
+      enabled: true
+      selfHeal: true
+
     syncOptions:
       - RespectIgnoreDifferences=true
 
