@@ -1,7 +1,3 @@
 - op: replace
   path: /metadata/name
-  value: staging-saldo-pvc-dummy
-
-- op: replace
-  path: /spec/resources/requests/storage
-  value: 10Mi
+  value: staging-saldo-pvc
