@@ -5,8 +5,7 @@ resources:
   - ../base
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/cringe:0.8.1
-
+    newName: tomjtoth/cringe:0.9.0
 patches:
   - path: pvc.yml
     target:
