@@ -1,0 +1,5 @@
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: DB_BACKUP_EVERY_N_REVISIONS
+    value: 50
