@@ -82,6 +82,11 @@ spec:
       containers:
         - name: postgres
           image: postgres:alpine
+          args:
+            - -c
+            - log_statement=all
+            - -c
+            - log_line_prefix="%m "
 
           envFrom:
             - secretRef:
