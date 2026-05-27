@@ -11,4 +11,4 @@ patches:
       name: saldo-pvc
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/saldo:1.3.2
+    newName: tomjtoth/saldo:1.3.3
