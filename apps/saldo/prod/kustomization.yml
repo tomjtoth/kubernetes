@@ -10,13 +10,11 @@ patches:
       version: v1
       kind: Deployment
       name: saldo-dep
-
   - path: pvc.yml
     target:
       version: v1
       kind: PersistentVolumeClaim
       name: saldo-pvc
-
 images:
   - name: IMAGES/APP
-    newName: tomjtoth/saldo:1.3.3
+    newName: tomjtoth/saldo:1.3.4
