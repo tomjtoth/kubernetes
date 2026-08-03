@@ -7,83 +7,10 @@ This setup uses a Virtual IP, keepalived and related scripts on controllers to u
 
 Paste the below function into your shell on the node you want to join.
 
-```sh
-_join() {
-
-  # Download k0s
-  if [ ! -e /usr/local/bin/k0s ]; then
-    curl --proto '=https' --tlsv1.2 -sSf https://get.k0s.sh | sudo sh
-  fi
-
-  local join_flags tok=/tmp/k0s-join-token \
-    node_ip=$(ip addr | grep -Po '10.200.0.[0-9]+' | head -n 1) \
-    usage="
-    usage: _join ROLE [TOKEN]
-    where:
-      ROLE        'worker' or 'controller'
-      TOKEN       generated output of an existing controller
-    "
-
-  if [ $# -lt 1 ]; then
-    echo "$usage"
-    return 1
-  fi
-
-  # parse role
-  case "$1" in
-    worker)
-      join_flags+=(worker)
-    ;;
-
-    controller)
-      sudo mkdir /etc/k0s 2>/dev/null
-      k0s config create | sudo tee /etc/k0s/k0s.yaml >/dev/null
-
-      sudo yq -yi \
-        --arg nodeIp $node_ip \
-        '
-        .spec.api.address = $nodeIp |
-        .spec.storage.etcd.peerAddress = $nodeIp |
-        .spec.network.provider = "calico" |
-        .spec.network.calico.mode = "bird" |
-        .spec.network.nodeLocalLoadBalancing.enabled = true |
-        .spec.telemetry.enabled = true
-        ' /etc/k0s/k0s.yaml
-
-      join_flags+=(
-        controller -c /etc/k0s/k0s.yaml
-        --enable-worker --no-taints
-      )
-    ;;
-
-    -h|--help)
-      echo "$usage"
-      return 0
-    ;;
-
-    *)
-      echo "$usage"
-      return 1
-    ;;
-  esac
-
-
-  if [ -n "$2" ]; then
-    echo "$2" > $tok
-    join_flags+=(--token-file $tok)
-  fi
-
-
-  sudo k0s install ${join_flags[@]} \
-    --kubelet-extra-args="--node-ip=$node_ip" \
-    --start
-}
-```
-
 - Install first control-plane node
 
   ```sh
-  _join controller
+  k0s-join.sh controller
   ```
 
 - Enroll new nodes
@@ -100,11 +27,11 @@ _join() {
   - on the node to join
 
     ```sh
-    _join worker "PASTED_OUTPUT_FROM_ABOVE"
+    k0s-join.sh worker "PASTED_OUTPUT_FROM_ABOVE"
 
     # OR
 
-    _join controller "PASTED_OUTPUT_FROM_ABOVE"
+    k0s-join.sh controller "PASTED_OUTPUT_FROM_ABOVE"
     ```
 
 ## Attaching to cluster as admin
