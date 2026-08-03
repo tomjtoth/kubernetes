@@ -1,7 +1,6 @@
 # Multi-cloud k0s cluster
 
 Using a Wireguard mesh (maintained via [this Ansible role](https://github.com/tomjtoth/ops/tree/main/roles/wireguard)), you can bring all nodes to the same subnet, reducing the amount of ports needed to be open on firewalls.
-This setup uses a Virtual IP, keepalived and related scripts on controllers to update VIP owner on all Wireguard peers.
 
 ## Common steps
 
