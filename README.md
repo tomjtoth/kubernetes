@@ -60,6 +60,16 @@ ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
     --set controller.config.force-ssl-redirect="true"
   ```
 
+- Distributed storage
+
+  ```sh
+  helm repo add longhorn https://charts.longhorn.io
+  helm repo update
+  helm install longhorn longhorn/longhorn \
+    --namespace longhorn-system \
+    --create-namespace
+  ```
+
 - Wildcard TLS certificates for the whole cluster
   - Add cert-manager
 
@@ -88,24 +98,22 @@ ssh ANY_CONTROL_PLANE_NODE "sudo k0s kubeconfig admin" > ~/.kube/config
     kubectl apply -k cluster/
     ```
 
-- Distributed storage
-
-  ```sh
-  helm repo add longhorn https://charts.longhorn.io
-  helm repo update
-  helm install longhorn longhorn/longhorn \
-    --namespace longhorn-system \
-    --create-namespace
-  ```
-
 - Monitoring
 
   ```sh
-  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo add vm https://victoriametrics.github.io/helm-charts/
   helm repo update
-  helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-    --namespace prometheus \
-    --create-namespace
+  helm install vm \
+    oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-k8s-stack \
+    --namespace metrics \
+    --create-namespace \
+    --set grafana.enabled=false \
+    --set alertmanager.enabled=false \
+    --set vmalert.enabled=false \
+    --set vmsingle.spec.storage.resources.requests.storage=500Mi
+
+  # FreeLens / cluster settings / metrics / Prometheus operator
+  # metrics/vmsingle-vm-victoria-metrics-k8s-stack:8428
   ```
 
 - GitOps
